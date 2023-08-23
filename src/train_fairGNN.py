@@ -2,7 +2,6 @@
 import time
 import argparse
 import numpy as np
-
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
@@ -104,8 +103,8 @@ print(len(idx_test))
 #%%
 import dgl
 from utils import feature_norm
-G = dgl.DGLGraph()
-G.from_scipy_sparse_matrix(adj)
+G = dgl.DGLGraph(adj)
+# G.from_scipy_sparse_matrix(adj)
 if dataset == 'nba':
     features = feature_norm(features)
 
@@ -130,7 +129,7 @@ if sens_attr:
 # Model and optimizer
 
 model = FairGNN(nfeat = features.shape[1], args = args)
-model.estimator.load_state_dict(torch.load("./checkpoint/GCN_sens_{}_ns_{}".format(dataset,sens_number)))
+model.estimator.load_state_dict(torch.load("./checkpoint/GCN_sens_{}_ns_{}".format(dataset,sens_number),map_location=torch.device('cpu')))
 if args.cuda:
     model.cuda()
     features = features.cuda()
