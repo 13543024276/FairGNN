@@ -47,30 +47,43 @@ class FairGNN(nn.Module):
         self.train()
 
         ### update E, G
+        # self.estimator.requires_grad_(False)
         self.adv.requires_grad_(False)
         self.optimizer_G.zero_grad()
-
+        #只是得到估计值，并不是概率
         s = self.estimator(g,x)
         h = self.GNN(g,x)
+        # 只是得到估计值，并不是概率
         y = self.classifier(h)
-
-
-
+        #对抗器输出来的无sigmoid的数
         s_g = self.adv(h)
-
+        #s_score:是敏感属性估计器预测出来的概率值：不参与梯度计算，并且训练部分的概率采取真实值，无参与计算图的构建
         s_score = torch.sigmoid(s.detach())
         # s_score = (s_score > 0.5).float()
         s_score[idx_sens_train]=sens[idx_sens_train].unsqueeze(1).float()
+
+        #计算出分类的预测值
         y_score = torch.sigmoid(y)
+
+        #计算协方差损失
         self.cov =  torch.abs(torch.mean((s_score - torch.mean(s_score)) * (y_score - torch.mean(y_score))))
-
-
+        #计算分类损失
         self.cls_loss = self.criterion(y[idx_train],labels[idx_train].unsqueeze(1).float())
-        self.adv_loss = self.criterion(s_g,s_score)                
+        #计算对抗损失
+        self.adv_loss = self.criterion(s_g,s_score)
         
         self.G_loss = self.cls_loss  + self.args.alpha * self.cov - self.args.beta * self.adv_loss
         self.G_loss.backward()
+
+        for name, parameters in self.estimator.named_parameters():
+            print(name,parameters.grad)
+            tensor1=(parameters.data.clone().detach())
+            break
         self.optimizer_G.step()
+        for name, parameters in self.estimator.named_parameters():
+            tensor2 = parameters.data.clone().detach()
+            print(torch.allclose(tensor2,tensor1))
+            break
 
         ## update Adv
         self.adv.requires_grad_(True)
